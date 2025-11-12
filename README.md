@@ -26,29 +26,44 @@ Detect short-lived "needle" spikes in industrial or laboratory sensor readings w
    - Place one or more CSV files in a `data/` directory at the project root.
    - Each file must contain a time column (`Time(s)` by default) and one or more signal columns (`signal_0`, `signal_1`, `signal_2` by default).
 
-3. **Run the detector**
+3. **Run the detector with defaults**
    ```bash
    python spike_detector.py
    ```
 
-4. **Inspect the results**
-   - A `spike_report.csv` file summarizes every detected event (file name, signal, timestamps, amplitudes, etc.).
-   - When spikes are present in a file, a plot is saved to `plots/<file>_spikes.png` highlighting the peak (`t_curr`) and return-to-baseline (`t_back`) times.
+4. **Adjust behaviour with CLI flags (optional)** – for example, scan a custom
+   folder, analyse two specific signals, increase the spike amplitude threshold,
+   and skip plotting:
+   ```bash
+   python spike_detector.py \
+     --data-dir ./my_measurements \
+     --signals pressure load_cell \
+     --min-abs-jump 0.35 \
+     --no-plot
+   ```
+
+5. **Inspect the results**
+   - A `spike_report.csv` file summarizes every detected event (file name, signal, timestamps, amplitudes, etc.). You can change
+     the report name with `--report-name`.
+   - When spikes are present in a file, a plot is saved to `plots/<file>_spikes.png` highlighting the peak (`t_curr`) and return-to-baseline (`t_back`) times. Disable this step with `--no-plot`.
 
 ## Configuration Overview
 
-All runtime settings live at the top of `spike_detector.py` and can be adjusted without touching the detection logic.
+`spike_detector.py` exposes every runtime option both as CLI arguments and via
+the `DetectorConfig` dataclass. Override them inline when calling the script or
+compose a custom configuration object if you import the module elsewhere.
 
-| Category | Setting | Description |
-| --- | --- | --- |
-| Data loading | `DATA_DIR`, `GLOB` | Folder and filename pattern to scan for CSV files. |
-| Columns | `time_col`, `signal_cols` | Expected time column and signal column names; matching is case-insensitive and ignores spacing. |
-| Spike detection | `min_abs_jump`, `z_k`, `rate_threshold` | Tune amplitude and optional rate thresholds. Larger `z_k` yields stricter detection. |
-| Spike shape | `spike_max_steps`, `spike_max_dt_factor` | Control how quickly the signal must return after peaking. |
-| Baseline return | `return_frac`, `return_abs_tol` | Allowable deviation from the pre-spike baseline when the signal comes back down. |
-| Plotting | `PLOT_FIGSIZE`, `SPIKE_MARKER_SIZE`, `SPIKE_COLOR`, etc. | Style options for the generated matplotlib figures. |
+| Category | CLI flag(s) | Dataclass attribute | Description |
+| --- | --- | --- | --- |
+| Data loading | `--data-dir`, `--glob` | `data_dir`, `glob` | Folder and filename pattern to scan for CSV files. |
+| Columns | `--time-col`, `--signals` | `time_col`, `signal_cols` | Expected time column and signal column names; matching is case-insensitive and ignores spacing. |
+| Spike detection | `--min-abs-jump`, `--z-k`, `--rate-threshold` | `min_abs_jump`, `z_k`, `rate_threshold` | Tune amplitude and optional rate thresholds. Larger `z_k` yields stricter detection. |
+| Spike shape | `--spike-max-steps`, `--spike-max-dt-factor` | `spike_max_steps`, `spike_max_dt_factor` | Control how quickly the signal must return after peaking. |
+| Baseline return | `--return-frac`, `--return-abs-tol` | `return_frac`, `return_abs_tol` | Allowable deviation from the pre-spike baseline when the signal comes back down. |
+| Output | `--report-name`, `--no-plot` | `report_name`, `plot` | Control the CSV report name and whether to export plots. |
 
-After modifying any parameters, rerun `python spike_detector.py` to apply the new configuration.
+After adjusting any parameter, rerun `python spike_detector.py` with the desired
+flags (or re-run your wrapper script) to apply the new configuration.
 
 ## Example Output
 
@@ -65,4 +80,4 @@ Each plotted spike is marked with a red `×`, and two dotted vertical lines indi
 - The detector focuses on the "needle" pattern: a sharp rise followed by a fast return to the previous baseline.
 - Increase `min_abs_jump` or `rate_threshold` if high-frequency noise causes false positives; lower them if true spikes are being missed.
 - If your data uses a different sampling interval, adjust `spike_max_steps` and `spike_max_dt_factor` so the downstroke window matches your expectations.
-- Want to skip plotting? Comment out or remove the call to `plot_file_with_spikes` at the end of `main()`.
+- Want to skip plotting? Add `--no-plot` when running the script or set `plot=False` on the config object.
